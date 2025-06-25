@@ -1,4 +1,4 @@
-#include <iostream> // Incluye funcionalidades de entrada/salida estándar (cout, cin, etc)
+#include <iostream> // Incluye funcionalidades de entrada/salida estándar (cout, cin, etc) HOLA SAMI
 #include <vector> // Incluye soporte para usar vectores dinámicos (como arreglos que cambian de tamaño)
 #include "raylib.h" // Librería externa usada para crear gráficos, cargar imágenes, manejar entrada de teclado, etc.
 
@@ -171,7 +171,7 @@ void DibujarPantalla() { // Llama a la función de dibujo de la pantalla activa
 
 #pragma endregion
 
-/* --------------------------------------------------- MAIN/PRINCIPAL --------------------------------------------------*/
+/* ------------------------------------------------- MAIN/PRINCIPAL --------------------------------------------------*/
 
 #pragma region //INT MAIN
 
