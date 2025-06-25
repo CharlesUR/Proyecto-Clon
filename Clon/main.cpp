@@ -54,6 +54,8 @@ const int screenHeight = 720; // Alto de la ventana principal en píxeles
 
 //ENTRADAS por TECLADO
 
+#pragma region //FUNCIONES ACTUALIZAR
+
 void ActualizarMenuPrincipal() { // Función que maneja la lógica al presionar teclas en el menú principal
     int tamMenuPrincipal = menuPrincipal.size(); // Guarda el número de opciones del menú principal
 
@@ -103,7 +105,11 @@ void ActualizarPantalla() { // Llama a la función de lógica según la pantalla
     }
 }
 
+#pragma endregion
+
 //VISUALMENTE MENU
+
+#pragma region //FUNCIONES DIBUJAR
 
 void DibujarMenuPrincipal() { // Función que dibuja las opciones del menú principal en la pantalla
     int fontSize = 40; // Tamaño de la fuente
@@ -163,7 +169,11 @@ void DibujarPantalla() { // Llama a la función de dibujo de la pantalla activa
     }
 }
 
+#pragma endregion
+
 /* --------------------------------------------------- MAIN/PRINCIPAL --------------------------------------------------*/
+
+#pragma region //INT MAIN
 
 int main(void) { // Función principal, punto de inicio del programa
     Texture2D fondo[4]; // Arreglo temporal de texturas de fondo
@@ -228,3 +238,5 @@ int main(void) { // Función principal, punto de inicio del programa
     CloseWindow(); // Cierra la ventana y libera recursos de Raylib
     return 0; // Devuelve 0 para indicar salida correcta
 }
+
+#pragma endregion
