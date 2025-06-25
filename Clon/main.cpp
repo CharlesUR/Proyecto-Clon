@@ -1,253 +1,230 @@
-/*******************************************************************************************
+#include <iostream> // Incluye funcionalidades de entrada/salida estándar (cout, cin, etc)
+#include <vector> // Incluye soporte para usar vectores dinámicos (como arreglos que cambian de tamaño)
+#include "raylib.h" // Librería externa usada para crear gráficos, cargar imágenes, manejar entrada de teclado, etc.
 
-*   Para compilar, presionar F5. antuna
+using namespace std; // Permite evitar el prefijo 'std::' al usar cosas como cout, vector, string
 
-********************************************************************************************/
+/* ---------------------------------------------- VARIABLES GLOBALES --------------------------------------------------*/
 
-#include "raylib.h"
+#pragma region //VARIABLES GLOBALES
 
-#define VEL 236
-Texture2D textura;
-float deltaTime;
+Font fuente; // Variable global para guardar la fuente personalizada que se usará en el texto del juego
 
-//----------------------------------------------------------------------------------
-// Definicion de clases.
-//----------------------------------------------------------------------------------
-typedef enum{
-    Menu_Principal,
-    Juego,
-    Game_Over
-} Escenas;
+#pragma endregion
 
-Escenas escenaActual;
+/* ---------------------------------------------- ESTRUCTURAS/CLASES --------------------------------------------------*/
 
-typedef enum{
-    Quieto,
-    Arriba,
-    Izquierda,
-    Abajo,
-    Derecha
-} Direcciones;
+#pragma region //ESTRUCTURAS/CLASES
 
-typedef enum{
-    Normal,
-    Rapido,
-    Lento
-} EstadoVelocidad;
+typedef enum Pantalla { // Se define un tipo de dato enum llamado Pantalla para identificar en qué pantalla está el juego
+    MENU_PRINCIPAL, // Menú principal del juego
+    MENU_OPCIONES,  // Menú de configuración
+    MENU_CREDITOS,  // Pantalla de créditos
+    JUEGO,          // Pantalla del juego en sí
+    SALIR           // Opción para cerrar el juego
+} Pantalla;
 
-class Jugador{
-    private:
-        Rectangle hitbox;
-        Color colorMoto;
+Pantalla pantallaActual = MENU_PRINCIPAL; // Variable que guarda en qué pantalla nos encontramos actualmente
 
-    public:
-        Direcciones direccion;
-        EstadoVelocidad velocidadActual;
+#pragma endregion
 
-        Jugador(float _height, float _width, Vector2 _coord, Color _color){
-            hitbox.height = _height;
-            hitbox.width = _width;
-            hitbox.x = _coord.x;
-            hitbox.y = _coord.y;
-            colorMoto = _color;
-            direccion = Quieto;
-            velocidadActual = Normal;
-        }
-        Jugador(float _height, float _width, float _x, float _y, Color _color){
-            hitbox.height = _height;
-            hitbox.width = _width;
-            hitbox.x = _x;
-            hitbox.y = _y;
-            colorMoto = _color;
-            direccion = Quieto;
-            velocidadActual = Normal;
-        }
-        void dibujar_Jugador(){
-            float x = textura.width;
-            x *= direccion == Izquierda? -1:1;
-            
-            float r = 0;
-            //if(direccion == Abajo) r = 90;
-            //else if (direccion == Arriba) r = -90;
-            //else r = 0;
+/* --------------------------------------------------- VECTORES -----------------------------------------------------*/
 
-            DrawTexturePro(textura, (Rectangle){0, 0, x, (float)textura.height}, hitbox, (Vector2){0,0}, r, colorMoto);
-        }
-        void mover_Lateral(float velocidad){
-            hitbox.x += velocidad;
-        }
-        void mover_Vertical(float velocidad){
-            hitbox.y -= velocidad;
-        }
-        void mover(){
-            float velocidad = VEL * deltaTime;
-            
-            if(velocidadActual == Rapido) velocidad *= 1.4;
-            else if(velocidadActual == Lento) velocidad *= 0.55;
+#pragma region //VECTORES
+vector<Texture2D> fondos; // Vector global que almacena las texturas de fondo que se irán rotando en el menú
 
-            if(direccion == Arriba) mover_Vertical(velocidad);
-            else if(direccion == Abajo) mover_Vertical(-velocidad);
-            else if(direccion == Derecha) mover_Lateral(velocidad);
-            else if(direccion == Izquierda) mover_Lateral(-velocidad);
-            
-        }
-        float pos_x(){
-            return hitbox.x;
-        }
-        float pos_y(){
-            return hitbox.y;
-        }
-};
+vector<string> menuPrincipal = { "Nueva Partida", "Continuar", "Opciones", "Creditos", "Salir" }; // Lista con las opciones del menú principal
+int opc = 0; // Índice para saber qué opción del menú principal está seleccionada
 
-//----------------------------------------------------------------------------------
-// Definicion de variables y constantes.
-//----------------------------------------------------------------------------------
-const int screenWidth = 800;
-const int screenHeight = 450;
+vector<string> menuOpciones = {"Musica", "Fx", "Pantalla"}; // Lista con las opciones del submenú de opciones
+int opcOpciones = 0; // Índice para saber qué opción del menú de opciones está seleccionada
 
+#pragma endregion
 
-Jugador P1 = Jugador(50, 50, screenWidth/2-25, screenHeight/2-25, PURPLE);
-Camera2D camera = {(Vector2){screenWidth/2, screenHeight/2}, (Vector2){P1.pos_x()+25, P1.pos_y()+25}, 0, 1}; // Para un jugador nomas
+/* ---------------------------------------------- TAMAÑO DE PANTALLA --------------------------------------------------*/
 
-//----------------------------------------------------------------------------------
-// Definicion de funciones.
-//----------------------------------------------------------------------------------
-static void UpdateDrawFrame(void);          // Update and draw one frame
-void limites();
+#pragma region //TAMAÑO de PANTALLA
 
-//----------------------------------------------------------------------------------
-// Programa pincipal.
-//----------------------------------------------------------------------------------
-int main()
-{
-    // Inicializacion.
-    //--------------------------------------------------------------------------------------
-    InitWindow(screenWidth, screenHeight, "Clon");
-    
-    SetWindowState(FLAG_WINDOW_RESIZABLE);
-    SetExitKey(KEY_NULL);           // Hace que ninguna tecla cierre el juego. Por defecto es ESC, pero sera la pausa.
-    SetTargetFPS(60);               // Limita los fps a 60.
-    
-    escenaActual = Menu_Principal;
-    textura = LoadTexture("resources/moto.png");
-    //--------------------------------------------------------------------------------------
+const int screenWidth = 1280; // Ancho de la ventana principal en píxeles
+const int screenHeight = 720; // Alto de la ventana principal en píxeles
 
-    // Loop principal del juego.
-    while (!WindowShouldClose())    // Detecta el boton de cerrar ventana.
-    {
-        if(escenaActual == Menu_Principal){
-            P1 = Jugador(50, 50, screenWidth/2-25, screenHeight/2-25, PURPLE);
-            BeginDrawing();
-                DrawRectangle(0, 0, screenWidth, screenHeight, BLACK);
-                DrawText("CLON", screenWidth/2, 12, 30, ORANGE);
-                DrawText("CLON", screenWidth/2-2, 10, 30, WHITE);
-                DrawText("WASD - Movimiento", 30, 40, 25, WHITE);
-                DrawText("CTRL - Acelerar", 30, 70, 25, WHITE);
-                DrawText("SHIFT - Desacelerar", 30, 100, 25, WHITE);
-                DrawText("Space - Velocidad Normal", 30, 130, 25, WHITE);
-                DrawText("Espacio para continuar...", 53, 224, 30, BLUE);
-                DrawText("Espacio para continuar...", 50, 220, 30, WHITE);
-                if(IsKeyPressed(KEY_SPACE)) escenaActual = Juego;
-            EndDrawing();
-        } else if(escenaActual == Juego){
-            UpdateDrawFrame();
-        } else if(escenaActual == Game_Over){
-            BeginDrawing();
-                DrawRectangle(0, 0, screenWidth, screenHeight, BLACK);
-                DrawText("GAME OVER", screenWidth/2, 12, 30, RED);
-                DrawText("Espacio para continuar...", 53, 224, 30, BLUE);
-                DrawText("Espacio para continuar...", 50, 220, 30, WHITE);
-                if(IsKeyPressed(KEY_SPACE)) escenaActual = Menu_Principal;
-            EndDrawing();
+#pragma endregion
+
+/* --------------------------------------------------- FUNCIONES ------------------------------------------------------*/
+
+//ENTRADAS por TECLADO
+
+void ActualizarMenuPrincipal() { // Función que maneja la lógica al presionar teclas en el menú principal
+    int tamMenuPrincipal = menuPrincipal.size(); // Guarda el número de opciones del menú principal
+
+    if (IsKeyPressed(KEY_DOWN)) opc++; // Si el jugador presiona la tecla abajo, aumenta el índice de la opción seleccionada
+    if (IsKeyPressed(KEY_UP)) opc--; // Si presiona arriba, disminuye el índice
+
+    if (opc < 0) opc = menuPrincipal.size() - 1; // Si se pasa del límite inferior, vuelve al final del menú
+    if (opc >= tamMenuPrincipal) opc = 0; // Si se pasa del último, vuelve al inicio
+
+    if (IsKeyPressed(KEY_ENTER)) { // Si se presiona ENTER, se ejecuta una acción según la opción seleccionada
+        switch (opc) { // Estructura que compara el valor de opc
+            case 0: pantallaActual = JUEGO; break; // Si es "Nueva Partida", va al juego
+            case 1: pantallaActual = JUEGO; break; // "Continuar" también va al juego (placeholder por ahora)
+            case 2: pantallaActual = MENU_OPCIONES; break; // Ir a menú de opciones
+            case 3: pantallaActual = MENU_CREDITOS; break; // Ir a créditos
+            case 4: pantallaActual = SALIR; break; // Salir del juego
         }
     }
-
-    // Liberacion de memoria.
-    //--------------------------------------------------------------------------------------
-    CloseWindow();                  // Cierra la ventana y el contexto OpenGL
-    //--------------------------------------------------------------------------------------
-
-    return 0;
 }
 
-// Actualiza y dibuja los frames.
-static void UpdateDrawFrame(void)
-{
-    // Actualizacion de cosas.
-    //----------------------------------------------------------------------------------
-    deltaTime = GetFrameTime();
-
-    if(IsKeyPressed(KEY_W)){
-        if(P1.direccion != Arriba) P1.direccion = Arriba;
-        else if(P1.velocidadActual != Rapido) P1.velocidadActual = Rapido;
-        else P1.velocidadActual = Normal;
-    } 
-    if(IsKeyPressed(KEY_S)){
-        if(P1.direccion != Abajo) P1.direccion = Abajo;
-        else if(P1.velocidadActual != Rapido) P1.velocidadActual = Rapido;
-        else P1.velocidadActual = Normal;
-    }
-    if(IsKeyPressed(KEY_A)){
-        if(P1.direccion != Izquierda) P1.direccion = Izquierda;
-        else if(P1.velocidadActual != Rapido) P1.velocidadActual = Rapido;
-        else P1.velocidadActual = Normal;
-    } 
-    if(IsKeyPressed(KEY_D)){
-        if(P1.direccion != Derecha) P1.direccion = Derecha;
-        else if(P1.velocidadActual != Rapido) P1.velocidadActual = Rapido;
-        else P1.velocidadActual = Normal;
-    } 
-
-    if(IsKeyPressed(KEY_LEFT_SHIFT)){
-        if(P1.velocidadActual != Lento) P1.velocidadActual = Lento;
-        else P1.velocidadActual = Normal;
-    }
-
-    if(IsKeyPressed(KEY_LEFT_CONTROL)){
-        if(P1.velocidadActual != Rapido) P1.velocidadActual = Rapido;
-        else P1.velocidadActual = Normal;
-    }
-
-    if(IsKeyPressed(KEY_SPACE)){
-        P1.velocidadActual = Normal;
-    }
-
-    P1.mover();
-
-    limites();
-    //camera.target = (Vector2){P1.pos_x()+25, P1.pos_y()+25}; // Seguir al jugador
-
-    //----------------------------------------------------------------------------------
-
-    // Dibujar frames.
-    //----------------------------------------------------------------------------------
-    BeginDrawing();
-
-        ClearBackground(BLACK);
-        BeginMode2D(camera);
+void ActualizarOpciones() { // Función que controla la navegación dentro del menú de configuración
+    int tamMenuOpciones = menuOpciones.size(); // Número de opciones disponibles
     
-            // Limites del mapa
-            DrawLine(1, 0, 1, screenHeight, RED);
-            DrawLine(0, 2, screenWidth, 2, RED);
-            DrawLine(screenWidth, 0, screenWidth, screenHeight, RED);
-            DrawLine(0, screenHeight, screenWidth, screenHeight, RED);
-            
-            // Cruz central.
-            //DrawLine(0, screenHeight/2, screenWidth, screenHeight/2, GREEN);
-            //DrawLine(screenWidth/2, 0, screenWidth/2, screenHeight, GREEN);
-
-            DrawText(TextFormat("Velocidad: %s", P1.velocidadActual==Rapido?"Rapido":P1.velocidadActual==Lento?"Lento":"Normal"), 20, 20,20, GREEN);
-
-            P1.dibujar_Jugador();
-        
-        EndMode2D();
-
-    EndDrawing();
-    //----------------------------------------------------------------------------------
+    if (IsKeyPressed(KEY_ESCAPE)) pantallaActual = MENU_PRINCIPAL; // Si se presiona ESC, se vuelve al menú principal
+    
+    if (IsKeyPressed(KEY_DOWN)) opcOpciones++; // Avanzar en opciones
+    if (IsKeyPressed(KEY_UP)) opcOpciones--; // Retroceder en opciones
+    if (opcOpciones < 0) opcOpciones = menuOpciones.size() - 1; // Si se pasa hacia arriba, volver al final
+    if (opcOpciones >= tamMenuOpciones) opcOpciones = 0; // Si se pasa del final, volver al inicio
 }
 
-void limites(){
-    if(P1.pos_x() < 0 || P1.pos_x()+50 > screenWidth || P1.pos_y() < 0 || P1.pos_y()+50 > screenHeight){
-        escenaActual = Game_Over;
+void ActualizarCreditos() { // Permite salir de la pantalla de créditos
+    if (IsKeyPressed(KEY_ESCAPE)) pantallaActual = MENU_PRINCIPAL; // Volver al menú principal al presionar ESC
+}
+
+void ActualizarJuego() { // Permite regresar al menú principal desde el juego
+    if (IsKeyPressed(KEY_ESCAPE)) pantallaActual = MENU_PRINCIPAL; // ESC vuelve al menú principal
+}
+
+void ActualizarPantalla() { // Llama a la función de lógica según la pantalla actual
+    switch (pantallaActual) { // Evalúa en qué estado estamos
+        case MENU_PRINCIPAL: ActualizarMenuPrincipal(); break; // Menú principal
+        case MENU_OPCIONES:  ActualizarOpciones(); break; // Opciones
+        case MENU_CREDITOS:  ActualizarCreditos(); break; // Créditos
+        case JUEGO:          ActualizarJuego(); break; // Juego
+        case SALIR:          CloseWindow(); break; // Salir
     }
+}
+
+//VISUALMENTE MENU
+
+void DibujarMenuPrincipal() { // Función que dibuja las opciones del menú principal en la pantalla
+    int fontSize = 40; // Tamaño de la fuente
+    int spacing = 60; // Espacio vertical entre cada opción
+    int tamMenuPrincipal = menuPrincipal.size(); // Número total de opciones del menú principal
+
+    for (int i = 0; i < tamMenuPrincipal; i++) { // Bucle para recorrer cada opción del menú
+        Color color = (i == opc) ? GREEN : DARKGRAY; // Si la opción está seleccionada, la dibuja en verde; si no, en gris
+
+        int textWidth = MeasureTextEx(fuente, menuPrincipal[i].c_str(), fontSize, 2).x; // Calcula el ancho del texto actual
+        DrawTextEx( // Dibuja el texto de la opción en pantalla
+            fuente, // Fuente usada
+            menuPrincipal[i].c_str(), // Convierte el string a const char*
+            (Vector2){screenWidth / 2.0f - textWidth / 2.0f, screenHeight / 3.0f + i * spacing}, // Posición centrada en pantalla
+            fontSize, // Tamaño del texto
+            2, // Espaciado entre letras
+            color // Color determinado anteriormente
+        );
+    }
+}
+
+void DibujarOpciones() { // Función que dibuja las opciones del menú de configuración
+    int fontSize = 40; // Tamaño de fuente
+    int spacing = 60; // Espacio entre líneas
+    int tamOpciones = menuOpciones.size(); // Total de opciones en este menú
+
+    for (int i = 0; i < tamOpciones; i++) { // Recorre cada opción del menú de configuración
+        Color color = (i == opcOpciones) ? RED : DARKGRAY; // Marca en rojo la opción seleccionada, el resto en gris
+
+        int textWidth = MeasureTextEx(fuente, menuOpciones[i].c_str(), fontSize, 2).x; // Calcula el ancho del texto
+        DrawTextEx( // Dibuja el texto en pantalla
+            fuente, // Fuente personalizada
+            menuOpciones[i].c_str(), // Opción actual como const char*
+            (Vector2){screenWidth / 2.0f - textWidth / 2.0f, screenHeight / 3.0f + i * spacing}, // Posición centrada
+            fontSize, // Tamaño
+            2, // Espaciado entre letras
+            color // Color seleccionado
+        );
+    }
+}
+
+void DibujarCreditos() { // Dibuja la pantalla de créditos
+    DrawText("CREDITOS: Charles y sus compas", 300, screenHeight / 2, 30, DARKPURPLE); // Texto fijo en la pantalla
+}
+
+void DibujarJuego() { // Pantalla temporal del juego que indica que se está "jugando"
+    DrawText("JUGANDO... (Pulsa ESC para volver)", 300, screenHeight / 2, 30, DARKGREEN); // Mensaje en pantalla
+}
+
+void DibujarPantalla() { // Llama a la función de dibujo de la pantalla activa
+    switch (pantallaActual) {
+        case MENU_PRINCIPAL: DibujarMenuPrincipal(); break; // Dibujar menú
+        case MENU_OPCIONES:  DibujarOpciones(); break; // Dibujar opciones
+        case MENU_CREDITOS:  DibujarCreditos(); break; // Dibujar créditos
+        case JUEGO:          DibujarJuego(); break; // Dibujar juego
+        default: break; // Nada
+    }
+}
+
+/* --------------------------------------------------- MAIN/PRINCIPAL --------------------------------------------------*/
+
+int main(void) { // Función principal, punto de inicio del programa
+    Texture2D fondo[4]; // Arreglo temporal de texturas de fondo
+    string cadNumImg; // Para construir el nombre del archivo de imagen
+    string cadena; // Ruta completa de la imagen
+    const char *cargarImg; // Conversión a const char* para LoadTexture
+
+    InitWindow(screenWidth, screenHeight, "BRAINROT FIGHTER"); // Inicializa la ventana
+    SetExitKey(KEY_NULL); // Desactiva tecla predeterminada de salida (ESC)
+
+    fuente = LoadFontEx("C:/Users/uri18/Desktop/CODE_VIDEOGAMES/PROYECTO CLON/Proyecto-Clon/Clon/resources/fonts/AcehDarusalam.ttf", 40, 0, 0); // Carga la fuente personalizada
+
+    for (int i = 0; i < 4; i++) { // Bucle para cargar 4 imágenes de fondo
+        cadNumImg = to_string(i+1); // Convierte i+1 a string ("1", "2", etc.)
+        cadena = "C:/Users/uri18/Desktop/CODE_VIDEOGAMES/PROYECTO CLON/Proyecto-Clon/Clon/resources/img/" + cadNumImg + ".png"; // Construye la ruta del archivo
+        cargarImg = cadena.c_str(); // Convierte a const char*
+        fondo[i] = LoadTexture(cargarImg); // Carga la imagen como textura
+    }
+
+    float tiempoCambio = 5.0f; // Tiempo entre cambios de fondo
+    float tiempoActual = 0.0f; // Tiempo acumulado desde el último cambio
+    int fondoActual = 0; // Índice del fondo actualmente mostrado
+
+    for (int i = 0; i < 4; i++) { // Agrega los fondos cargados al vector global
+        fondos.push_back(fondo[i]);
+    }
+
+    SetTargetFPS(60); // Define que el juego corra a 60 frames por segundo
+
+/* ------------------------------------------------- CICLO PRINCIPAL -----------------------------------------------------*/
+
+    while (!WindowShouldClose() && pantallaActual != SALIR) { // Bucle principal, se ejecuta hasta cerrar la ventana o elegir SALIR
+        BeginDrawing(); // Comienza el dibujo de frame
+
+            tiempoActual += GetFrameTime(); // Suma el tiempo transcurrido desde el último frame
+            if (tiempoActual >= tiempoCambio) { // Si pasó suficiente tiempo...
+                tiempoActual = 0.0f; // Reinicia contador
+                fondoActual = (fondoActual + 1) % fondos.size(); // Cambia al siguiente fondo (cíclico)
+            }
+
+            ClearBackground(RAYWHITE); // Borra todo lo que había antes con color blanco (opcional si el fondo cubre todo)
+
+            DrawTexturePro( // Dibuja el fondo actual adaptado al tamaño de la pantalla
+                fondos[fondoActual], // Textura a dibujar
+                { 0, 0, (float)fondos[fondoActual].width, (float)fondos[fondoActual].height }, // Rectángulo de origen (completo)
+                { 0, 0, (float)GetScreenWidth(), (float)GetScreenHeight() }, // Rectángulo destino (pantalla completa)
+                { 0, 0 }, // Origen (offset de dibujo)
+                0.0f, // Rotación
+                WHITE // Color (sin modificar la textura)
+            );
+
+            ActualizarPantalla(); // Ejecuta la lógica de la pantalla actual
+            DibujarPantalla(); // Dibuja la pantalla actual
+
+        EndDrawing(); // Finaliza el frame
+    }
+
+    for (auto& fondo : fondos) { // Libera memoria de las texturas al cerrar
+        UnloadTexture(fondo);
+    }
+
+    CloseWindow(); // Cierra la ventana y libera recursos de Raylib
+    return 0; // Devuelve 0 para indicar salida correcta
 }
